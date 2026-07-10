@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+
+class LocaleController extends Controller
+{
+    public function __invoke(Request $request, string $locale): RedirectResponse
+    {
+        $available = array_keys(config('locales.available', []));
+
+        if (! in_array($locale, $available, true)) {
+            abort(404);
+        }
+
+        $request->session()->put('locale', $locale);
+
+        return redirect()
+            ->back(fallback: route('dashboard'))
+            ->withCookie(cookie()->forever('locale', $locale));
+    }
+}
