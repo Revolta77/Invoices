@@ -1,0 +1,134 @@
+# Deploy Invoices (Laravel 13 + Livewire 4) to server via SCP/SSH after push to main.
+#
+# Secrets are loaded from Infisical (OIDC). The generated .env on the runner is only
+# used for `npm run build` and is NOT uploaded — production .env must exist on the server.
+#
+# === GitHub: Settings → Variables → Actions ===
+#   INFISICAL_PROJECT_SLUG
+#   INFISICAL_ENV_SLUG          (e.g. prod)
+#   INFISICAL_IDENTITY_ID
+#
+# === Infisical secrets (deploy environment) ===
+#   SSH_HOST              e.g. 167.86.111.177
+#   SSH_USERNAME          e.g. faktu3617
+#   SSH_PRIVATE_KEY       celý privátny kľúč (vrátane BEGIN/END)
+#   SSH_PASSPHRASE        heslo k privátnemu kľúču
+#   SSH_PORT              voliteľné, default 22
+#   DEPLOY_REMOTE_APP_PATH  absolútna cesta k Laravel rootu na serveri
+#
+# === Server requirements ===
+#   • PHP 8.3+, Composer, document root → …/public
+#   • Writable storage/ and bootstrap/cache/
+#   • Cron or supervisor for: php artisan queue:work --sleep=3 --tries=3
+#   • Optional: xz binary for PAY by square QR (package xz-utils on Linux)
+#
+name: Deploy main
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.9
+        with:
+          method: "oidc"
+          project-slug: ${{ vars.INFISICAL_PROJECT_SLUG }}
+          env-slug: ${{ vars.INFISICAL_ENV_SLUG }}
+          identity-id: ${{ vars.INFISICAL_IDENTITY_ID }}
+          secret-path: /Core2n/faktury-core2n-sk
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, ctype, fileinfo, pdo, pdo_mysql, bcmath, gd, zip, dom
+          coverage: none
+          tools: composer
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Build .env for CI (not uploaded)
+        run: python3 scripts/render-env-from-example.py .env.example .env
+
+      - name: Composer install (CI only)
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      - name: NPM install & build assets
+        run: npm ci && npm run build
+
+      - name: Prepare deploy package
+        run: |
+          mkdir -p deploy-pkg
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='vendor' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='tests' \
+            --exclude='.phpunit.cache' \
+            --exclude='deploy-pkg' \
+            --exclude='storage/logs/*' \
+            --exclude='storage/framework/cache/data/*' \
+            --exclude='storage/framework/sessions/*' \
+            --exclude='storage/framework/views/*' \
+            ./ deploy-pkg/
+
+      - name: Copy application via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          key: ${{ env.SSH_PRIVATE_KEY }}
+          passphrase: ${{ env.SSH_PASSPHRASE }}
+          port: ${{ env.SSH_PORT || 22 }}
+          source: "deploy-pkg/*"
+          target: "${{ env.DEPLOY_REMOTE_APP_PATH }}/"
+          strip_components: 1
+          overwrite: true
+
+      - name: Run post-deploy on server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USERNAME }}
+          key: ${{ env.SSH_PRIVATE_KEY }}
+          passphrase: ${{ env.SSH_PASSPHRASE }}
+          port: ${{ env.SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd "${{ env.DEPLOY_REMOTE_APP_PATH }}"
+
+            composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+            php artisan migrate --force
+            php artisan storage:link --force || true
+
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            chmod -R ug+rwx storage bootstrap/cache || true
