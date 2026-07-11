@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "Revolta77/invoices",
+    "name": "revolta77/invoices",
     "type": "project",
     "description": "Self-hosted invoice management for Slovak freelancers and small businesses — Laravel, Livewire, PAY by square, Google Drive backup.",
     "keywords": [
