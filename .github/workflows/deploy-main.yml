@@ -99,7 +99,6 @@ jobs:
             --exclude='storage/framework/views/*' \
             ./ deploy-pkg/
           cp .env deploy-pkg/production.env
-          chmod 600 deploy-pkg/production.env
           test -s deploy-pkg/production.env
 
       - name: Copy application via SCP
