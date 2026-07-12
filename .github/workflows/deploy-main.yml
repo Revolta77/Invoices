@@ -20,7 +20,8 @@
 # === Server requirements ===
 #   • PHP 8.3+ CLI (CyberPanel: web PHP ≠ ssh `php -v`), document root → …/public
 #   • Writable storage/ and bootstrap/cache/
-#   • Cron or supervisor for: php artisan queue:work --sleep=3 --tries=3
+#   • Supervisor for queue worker + cron for schedule:run
+#   • Deploy runs `queue:restart` so Supervisor worker reloads after release
 #   • Optional: xz binary for PAY by square QR (package xz-utils on Linux)
 #
 name: Deploy main
@@ -149,5 +150,7 @@ jobs:
             $PHP artisan config:cache
             $PHP artisan route:cache
             $PHP artisan view:cache
+
+            $PHP artisan queue:restart
 
             chmod -R ug+rwx storage bootstrap/cache || true
