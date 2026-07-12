@@ -1,7 +1,7 @@
 # Deploy Invoices (Laravel 13 + Livewire 4) to server via SCP/SSH after push to main.
 #
-# Secrets are loaded from Infisical (OIDC). The generated .env on the runner is only
-# used for `npm run build` and is NOT uploaded — production .env must exist on the server.
+# Secrets are loaded from Infisical (OIDC). The generated .env on the runner is
+# rendered from .env.example + Infisical secrets and uploaded to the server on deploy.
 #
 # === GitHub: Settings → Variables → Actions ===
 #   INFISICAL_PROJECT_SLUG
@@ -16,6 +16,7 @@
 #   SSH_PORT              voliteľné, default 22
 #   DEPLOY_REMOTE_APP_PATH  absolútna cesta k Laravel rootu na serveri
 #   PHP_CLI_PATH            CyberPanel CLI PHP 8.3, typicky /usr/local/lsws/lsphp83/bin/php
+#   APP_KEY                 povinné — php artisan key:generate --show (iba raz, potom ulož do Infisical)
 #
 # === Server requirements ===
 #   • PHP 8.3+ CLI (CyberPanel: web PHP ≠ ssh `php -v`), document root → …/public
@@ -70,7 +71,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Build .env for CI (not uploaded)
+      - name: Build production .env from Infisical
         run: python3 scripts/render-env-from-example.py .env.example .env
 
       - name: Composer install (CI only)
@@ -97,6 +98,9 @@ jobs:
             --exclude='storage/framework/sessions/*' \
             --exclude='storage/framework/views/*' \
             ./ deploy-pkg/
+          cp .env deploy-pkg/production.env
+          chmod 600 deploy-pkg/production.env
+          test -s deploy-pkg/production.env
 
       - name: Copy application via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -134,6 +138,17 @@ jobs:
             echo "Using PHP: $($PHP -v | head -n 1)"
 
             cd "${{ env.DEPLOY_REMOTE_APP_PATH }}"
+
+            if [ ! -f production.env ]; then
+              echo "production.env was not uploaded (SCP glob skips dotfiles)" >&2
+              exit 1
+            fi
+            mv -f production.env .env
+            chmod 600 .env
+            if ! grep -q '^APP_KEY=base64:' .env; then
+              echo "APP_KEY is missing or invalid in .env — check Infisical secret APP_KEY" >&2
+              exit 1
+            fi
 
             COMPOSER="$(command -v composer || true)"
             if [ -z "$COMPOSER" ]; then
