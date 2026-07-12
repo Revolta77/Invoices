@@ -17,8 +17,9 @@ Route::get('/email/verify/{id}/{hash}', VerifyEmailController::class)
     ->middleware('signed')
     ->name('verification.verify');
 
+Route::livewire('/', Login::class)->name('login');
+
 Route::middleware('guest')->group(function () {
-    Route::livewire('/', Login::class)->name('login');
     Route::livewire('/register', Register::class)->name('register');
     Route::livewire('/forgot-password', ForgotPassword::class)->name('password.request');
     Route::livewire('/reset-password/{token}', ResetPassword::class)->name('password.reset');

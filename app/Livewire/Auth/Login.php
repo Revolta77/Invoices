@@ -27,6 +27,27 @@ class Login extends Component
 
     public bool $verificationSent = false;
 
+    public function mount(): void
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return;
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            $this->redirect(route('dashboard'), navigate: true);
+
+            return;
+        }
+
+        Auth::logout();
+
+        $this->unverifiedEmail = $user->email;
+        $this->showVerificationModal = true;
+        $this->refreshResendCooldown();
+    }
+
     public function login(): void
     {
         $validated = $this->validate([
