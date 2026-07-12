@@ -29,7 +29,7 @@ Route::middleware('guest')->group(function () {
         ->name('auth.google.callback');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified:login'])->group(function () {
     Route::livewire('/dashboard', Dashboard::class)->name('dashboard');
 
     Route::get('/invoices/{invoice}/pdf', [InvoiceDocumentController::class, 'pdf'])
