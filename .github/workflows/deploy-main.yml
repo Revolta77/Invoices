@@ -15,9 +15,10 @@
 #   SSH_PASSPHRASE        heslo k privátnemu kľúču
 #   SSH_PORT              voliteľné, default 22
 #   DEPLOY_REMOTE_APP_PATH  absolútna cesta k Laravel rootu na serveri
+#   PHP_CLI_PATH            CyberPanel CLI PHP 8.3, typicky /usr/local/lsws/lsphp83/bin/php
 #
 # === Server requirements ===
-#   • PHP 8.3+, Composer, document root → …/public
+#   • PHP 8.3+ CLI (CyberPanel: web PHP ≠ ssh `php -v`), document root → …/public
 #   • Writable storage/ and bootstrap/cache/
 #   • Cron or supervisor for: php artisan queue:work --sleep=3 --tries=3
 #   • Optional: xz binary for PAY by square QR (package xz-utils on Linux)
@@ -119,16 +120,34 @@ jobs:
           port: ${{ env.SSH_PORT || 22 }}
           script: |
             set -e
+
+            PHP="${{ env.PHP_CLI_PATH }}"
+            if [ -z "$PHP" ]; then
+              PHP="/usr/local/lsws/lsphp83/bin/php"
+            fi
+            if [ ! -x "$PHP" ]; then
+              echo "PHP binary not found: $PHP" >&2
+              exit 1
+            fi
+
+            echo "Using PHP: $($PHP -v | head -n 1)"
+
             cd "${{ env.DEPLOY_REMOTE_APP_PATH }}"
 
-            composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+            COMPOSER="$(command -v composer || true)"
+            if [ -z "$COMPOSER" ]; then
+              echo "composer not found in PATH" >&2
+              exit 1
+            fi
 
-            php artisan migrate --force
-            php artisan storage:link --force || true
+            $PHP "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --no-progress
 
-            php artisan optimize:clear
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
+            $PHP artisan migrate --force
+            $PHP artisan storage:link --force || true
+
+            $PHP artisan optimize:clear
+            $PHP artisan config:cache
+            $PHP artisan route:cache
+            $PHP artisan view:cache
 
             chmod -R ug+rwx storage bootstrap/cache || true
