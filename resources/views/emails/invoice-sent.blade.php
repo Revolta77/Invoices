@@ -98,8 +98,16 @@
                     </tr>
 
                     <tr>
-                        <td style="padding:16px 32px 28px;font-size:13px;color:#9ca3af;">
-                            <p style="margin:0;">{{ __('app.emails.invoice_sent.footer', ['app' => config('app.name')]) }}</p>
+                        <td style="padding:16px 32px 28px;font-size:13px;color:#9ca3af;text-align:center;">
+                            <p style="margin:0 0 12px;">{{ __('app.emails.invoice_sent.footer', ['app' => config('app.name')]) }}</p>
+                            @if ($trackingUrl)
+                                <img
+                                    src="{{ $trackingUrl }}"
+                                    alt="{{ config('app.name') }}"
+                                    width="120"
+                                    style="display:inline-block;max-width:120px;height:auto;"
+                                >
+                            @endif
                         </td>
                     </tr>
                 </table>

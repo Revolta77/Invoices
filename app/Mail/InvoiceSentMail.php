@@ -24,6 +24,7 @@ class InvoiceSentMail extends Mailable
         public string $pdfBinary,
         public ?string $extraAttachmentPath = null,
         public ?string $extraAttachmentName = null,
+        public ?string $trackingUrl = null,
     ) {}
 
     public function envelope(): Envelope

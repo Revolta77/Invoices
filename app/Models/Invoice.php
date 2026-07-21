@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
@@ -37,6 +38,8 @@ use Illuminate\Support\Facades\Storage;
     'emailed_at',
     'paid_amount',
     'paid_payment_method',
+    'is_locked',
+    'locked_at',
     'total',
     'signature_enabled',
     'signature_path',
@@ -61,6 +64,8 @@ class Invoice extends Model
             'paid_amount' => 'decimal:2',
             'signature_enabled' => 'boolean',
             'logo_enabled' => 'boolean',
+            'is_locked' => 'boolean',
+            'locked_at' => 'datetime',
             'status' => InvoiceStatus::class,
             'payment_method' => PaymentMethod::class,
             'paid_payment_method' => PaymentMethod::class,
@@ -94,6 +99,11 @@ class Invoice extends Model
         return $this->hasMany(InvoiceEmailLog::class)->latest('sent_at');
     }
 
+    public function latestEmailLog(): HasOne
+    {
+        return $this->hasOne(InvoiceEmailLog::class)->latestOfMany('sent_at');
+    }
+
     public function refreshStatus(): void
     {
         if ($this->paid_at !== null || $this->status === InvoiceStatus::Paid) {
@@ -114,6 +124,27 @@ class Invoice extends Model
     public function recalculateTotal(): void
     {
         $this->total = $this->items()->sum('total');
+    }
+
+    public function lock(?\Illuminate\Support\Carbon $lockedAt = null): void
+    {
+        $this->forceFill([
+            'is_locked' => true,
+            'locked_at' => $lockedAt ?? now(),
+        ])->save();
+    }
+
+    public function unlock(): void
+    {
+        $this->forceFill([
+            'is_locked' => false,
+            'locked_at' => null,
+        ])->save();
+    }
+
+    public function isLocked(): bool
+    {
+        return (bool) $this->is_locked;
     }
 
     public function signatureUrl(): ?string

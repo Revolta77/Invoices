@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
 
@@ -31,11 +32,13 @@ trait ManagesInvoices
     #[Url(as: 'invoice', history: true, keep: true)]
     public ?int $selectedInvoiceId = null;
 
+    public bool $selectedInvoiceLocked = false;
+
     public bool $isCreatingInvoice = false;
 
     public string $invoiceSearch = '';
 
-    public string $filterPeriod = 'current_month';
+    public string $filterPeriod = 'current_year';
 
     public ?string $filterDateFrom = null;
 
@@ -93,9 +96,15 @@ trait ManagesInvoices
 
     public bool $showDeleteInvoiceModal = false;
 
+    public bool $showToggleLockModal = false;
+
     public ?int $deleteInvoiceId = null;
 
+    public ?int $toggleLockInvoiceId = null;
+
     public bool $confirmDeleteInvoice = false;
+
+    public bool $toggleLockTargetState = true;
 
     public ?int $paymentInvoiceId = null;
 
@@ -126,6 +135,7 @@ trait ManagesInvoices
 
         $this->isCreatingInvoice = true;
         $this->selectedInvoiceId = null;
+        $this->selectedInvoiceLocked = false;
         $today = now()->toDateString();
 
         $this->invoiceForm = [
@@ -178,6 +188,7 @@ trait ManagesInvoices
     public function loadInvoice(int $invoiceId): void
     {
         $invoice = $this->invoiceQuery()->with('items')->findOrFail($invoiceId);
+        $this->selectedInvoiceLocked = $invoice->isLocked();
 
         $this->invoiceForm = [
             'number' => $invoice->number,
@@ -231,6 +242,7 @@ trait ManagesInvoices
     {
         $this->isCreatingInvoice = false;
         $this->selectedInvoiceId = null;
+        $this->selectedInvoiceLocked = false;
         $this->invoiceForm = [];
         $this->invoiceItems = [];
         $this->invoiceHasPayment = false;
@@ -241,6 +253,10 @@ trait ManagesInvoices
 
     public function removeInvoiceLogo(): void
     {
+        if (! $this->ensureInvoiceIsEditable()) {
+            return;
+        }
+
         $this->invoiceLogo = null;
 
         if ($this->invoiceHasCustomLogo()) {
@@ -265,6 +281,10 @@ trait ManagesInvoices
 
     public function removeInvoiceStamp(): void
     {
+        if (! $this->ensureInvoiceIsEditable()) {
+            return;
+        }
+
         $this->invoiceStamp = null;
 
         if ($this->invoiceHasCustomStamp()) {
@@ -292,6 +312,10 @@ trait ManagesInvoices
         $profileId = ActiveCompanyProfile::id();
 
         if (! $profileId) {
+            return;
+        }
+
+        if (! $this->ensureInvoiceIsEditable()) {
             return;
         }
 
@@ -606,6 +630,9 @@ trait ManagesInvoices
             $extraName = $this->emailExtraAttachment->getClientOriginalName();
         }
 
+        $openToken = (string) Str::uuid();
+        $trackingUrl = route('email.open', ['token' => $openToken]);
+
         try {
             $mail = new InvoiceSentMail(
                 messageBody: trim($this->invoiceEmailForm['body']),
@@ -614,6 +641,7 @@ trait ManagesInvoices
                 pdfBinary: $pdfBinary,
                 extraAttachmentPath: $extraPath,
                 extraAttachmentName: $extraName,
+                trackingUrl: $trackingUrl,
             );
 
             $message = Mail::to($this->invoiceEmailForm['to']);
@@ -652,6 +680,7 @@ trait ManagesInvoices
             'from_email' => $this->invoiceEmailForm['from'],
             'subject' => $this->invoiceEmailForm['subject'],
             'sent_at' => $sentAt,
+            'open_token' => $openToken,
         ]);
 
         $this->showInvoiceEmailModal = false;
@@ -680,6 +709,7 @@ trait ManagesInvoices
 
         $this->loadInvoice($this->selectedInvoiceId);
         $this->selectedInvoiceId = null;
+        $this->selectedInvoiceLocked = false;
         $this->isCreatingInvoice = true;
         $profileId = ActiveCompanyProfile::id();
         $this->invoiceForm['number'] = InvoiceNumberGenerator::suggest($profileId);
@@ -695,6 +725,10 @@ trait ManagesInvoices
 
     public function addInvoiceItem(): void
     {
+        if (! $this->ensureInvoiceIsEditable()) {
+            return;
+        }
+
         $this->invoiceItems[] = [
             'position' => count($this->invoiceItems) + 1,
             'name' => '',
@@ -707,6 +741,10 @@ trait ManagesInvoices
 
     public function removeInvoiceItem(int $index): void
     {
+        if (! $this->ensureInvoiceIsEditable()) {
+            return;
+        }
+
         if (count($this->invoiceItems) <= 1) {
             return;
         }
@@ -883,7 +921,7 @@ trait ManagesInvoices
     {
         $invoice = $this->invoiceQuery()->findOrFail($invoiceId);
 
-        if ($invoice->status === InvoiceStatus::Paid) {
+        if ($invoice->status === InvoiceStatus::Paid || $invoice->isLocked()) {
             return;
         }
 
@@ -928,6 +966,13 @@ trait ManagesInvoices
         }
 
         $invoice = $this->invoiceQuery()->findOrFail($this->paymentInvoiceId);
+
+        if ($invoice->isLocked()) {
+            $this->closePaymentModal();
+            $this->flashLockedInvoiceMessage();
+
+            return;
+        }
 
         if ($invoice->status === InvoiceStatus::Paid) {
             $this->closePaymentModal();
@@ -1010,6 +1055,52 @@ trait ManagesInvoices
     public function openFilterModal(): void
     {
         $this->showFilterModal = true;
+    }
+
+    public function openToggleLockModal(?int $invoiceId = null): void
+    {
+        $invoiceId ??= $this->selectedInvoiceId;
+
+        if (! $invoiceId) {
+            return;
+        }
+
+        $invoice = $this->invoiceQuery()->findOrFail($invoiceId);
+        $this->toggleLockInvoiceId = $invoice->id;
+        $this->toggleLockTargetState = ! $invoice->isLocked();
+        $this->showToggleLockModal = true;
+    }
+
+    public function closeToggleLockModal(): void
+    {
+        $this->showToggleLockModal = false;
+        $this->toggleLockInvoiceId = null;
+        $this->toggleLockTargetState = true;
+    }
+
+    public function toggleInvoiceLock(): void
+    {
+        if (! $this->toggleLockInvoiceId) {
+            return;
+        }
+
+        $invoice = $this->invoiceQuery()->findOrFail($this->toggleLockInvoiceId);
+
+        if ($this->toggleLockTargetState) {
+            $invoice->lock();
+            session()->flash('status', __('app.messages.invoice_locked', ['number' => $invoice->number]));
+        } else {
+            $invoice->unlock();
+            session()->flash('status', __('app.messages.invoice_unlocked', ['number' => $invoice->number]));
+        }
+
+        if ($this->selectedInvoiceId === $invoice->id) {
+            $this->loadInvoice($invoice->id);
+        }
+
+        $this->closeToggleLockModal();
+
+        GoogleDriveBackupDispatcher::dispatch();
     }
 
     public function closeFilterModal(): void
@@ -1192,7 +1283,7 @@ trait ManagesInvoices
      */
     public function getFilteredInvoicesProperty()
     {
-        $query = $this->invoiceQuery()->with('items');
+        $query = $this->invoiceQuery()->with(['items', 'latestEmailLog']);
 
         if ($this->invoiceSearch !== '') {
             $term = '%'.$this->invoiceSearch.'%';
@@ -1479,6 +1570,31 @@ trait ManagesInvoices
         return Invoice::query()->where('company_profile_id', $profileId);
     }
 
+    protected function ensureInvoiceIsEditable(?Invoice $invoice = null): bool
+    {
+        if (! $this->selectedInvoiceId && $invoice === null) {
+            return true;
+        }
+
+        $invoice ??= $this->selectedInvoiceId
+            ? $this->invoiceQuery()->find($this->selectedInvoiceId)
+            : null;
+
+        if (! $invoice?->isLocked()) {
+            return true;
+        }
+
+        $this->selectedInvoiceLocked = true;
+        $this->flashLockedInvoiceMessage();
+
+        return false;
+    }
+
+    protected function flashLockedInvoiceMessage(): void
+    {
+        session()->flash('status', __('app.validation.invoice.locked'));
+    }
+
     /**
      * @param  \Illuminate\Database\Eloquent\Collection<int, Invoice>  $invoices
      */
@@ -1690,6 +1806,14 @@ trait ManagesInvoices
 
     protected function ensureInvoiceSavedForExport(): bool
     {
+        if ($this->selectedInvoiceId) {
+            $invoice = $this->invoiceQuery()->find($this->selectedInvoiceId);
+
+            if ($invoice?->isLocked()) {
+                return true;
+            }
+        }
+
         $this->recalculateAllItemTotals();
         $this->saveInvoice();
 

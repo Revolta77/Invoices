@@ -62,10 +62,11 @@
                         </button>
                         <div x-show="open" x-cloak class="ek-invoice-menu-dropdown">
                             <button type="button" wire:click="selectInvoice({{ $invoice->id }})" @click="open = false">{{ __('app.invoices.actions.open') }}</button>
-                            @if ($invoice->status !== \App\InvoiceStatus::Paid)
+                            @if ($invoice->status !== \App\InvoiceStatus::Paid && ! $invoice->is_locked)
                                 <button type="button" wire:click="openPaymentModal({{ $invoice->id }})" @click="open = false">{{ __('app.invoices.actions.payments') }}</button>
                             @endif
                             <button type="button" wire:click="duplicateInvoiceFromList({{ $invoice->id }})" @click="open = false">{{ __('app.invoices.actions.create_copy') }}</button>
+                            <button type="button" wire:click="openToggleLockModal({{ $invoice->id }})" @click="open = false">{{ $invoice->is_locked ? __('app.invoices.actions.unlock') : __('app.invoices.actions.lock') }}</button>
                             <button type="button" wire:click="openDeleteInvoiceModal({{ $invoice->id }})" @click="open = false" class="ek-invoice-menu-dropdown__danger">{{ __('app.invoices.actions.delete') }}</button>
                         </div>
                     </div>
@@ -77,8 +78,29 @@
                     @php $status = $invoice->status; @endphp
                     <div class="ek-invoice-list-item__status-group">
                         <span class="ek-invoice-status ek-invoice-status--{{ $status->value }}">{{ $status->label() }}</span>
+                        @if ($invoice->is_locked)
+                            <span class="ek-invoice-emailed" style="color: var(--danger);" title="{{ __('app.invoices.locked.label') }}" aria-label="{{ __('app.invoices.locked.label') }}">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V7a3 3 0 116 0v4H9z" />
+                                </svg>
+                            </span>
+                        @endif
                         @if ($invoice->emailed_at)
-                            <span class="ek-invoice-emailed" title="{{ __('app.invoices.list.emailed_at', ['date' => $invoice->emailed_at->format('d.m.Y H:i')]) }}">
+                            @php
+                                $latestEmailLog = $invoice->latestEmailLog;
+                                $emailOpened = $latestEmailLog?->opened_at !== null;
+                            @endphp
+                            <span
+                                @class([
+                                    'ek-invoice-emailed',
+                                    'ek-invoice-emailed--sent' => ! $emailOpened,
+                                    'ek-invoice-emailed--opened' => $emailOpened,
+                                ])
+                                title="{{ $emailOpened
+                                    ? __('app.invoices.list.opened_at', ['date' => $latestEmailLog->opened_at->format('d.m.Y H:i')])
+                                    : __('app.invoices.list.emailed_at', ['date' => $invoice->emailed_at->format('d.m.Y H:i')]) }}"
+                                aria-label="{{ $emailOpened ? __('app.invoices.list.email_opened') : __('app.invoices.list.email_sent') }}"
+                            >
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                 </svg>
@@ -252,6 +274,29 @@
                 >
                     <span wire:loading.remove wire:target="deleteInvoice">{{ __('app.invoices.delete.submit') }}</span>
                     <span wire:loading wire:target="deleteInvoice">{{ __('app.invoices.delete.submitting') }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if ($showToggleLockModal)
+    <div class="ek-modal-backdrop" wire:click="closeToggleLockModal">
+        <div class="ek-modal ek-invoice-modal" wire:click.stop>
+            <h3 class="text-lg font-semibold">
+                {{ $toggleLockTargetState ? __('app.invoices.locked.lock_title') : __('app.invoices.locked.unlock_title') }}
+            </h3>
+
+            <p class="mt-3 text-sm ek-text-secondary">
+                {{ $toggleLockTargetState ? __('app.invoices.locked.lock_description') : __('app.invoices.locked.unlock_description') }}
+            </p>
+
+            <div class="ek-modal-actions">
+                <button type="button" wire:click="closeToggleLockModal" class="ek-btn-secondary" style="width: auto;">
+                    {{ __('app.invoices.locked.cancel') }}
+                </button>
+                <button type="button" wire:click="toggleInvoiceLock" class="ek-btn-primary" style="width: auto;">
+                    {{ $toggleLockTargetState ? __('app.invoices.locked.lock_submit') : __('app.invoices.locked.unlock_submit') }}
                 </button>
             </div>
         </div>

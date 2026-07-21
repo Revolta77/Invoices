@@ -1,3 +1,7 @@
+@php
+    $invoiceLocked = $selectedInvoiceLocked && ! $isCreatingInvoice;
+@endphp
+
 <div class="ek-invoice-form-wrap">
     <div class="ek-invoice-form-header">
         <div class="ek-invoice-form-header__title">
@@ -37,6 +41,12 @@
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                 <span>{{ __('app.invoices.actions.duplicate') }}</span>
             </button>
+            @if (! $isCreatingInvoice)
+                <button type="button" wire:click="openToggleLockModal" class="ek-icon-action" title="{{ $invoiceLocked ? __('app.invoices.actions.unlock') : __('app.invoices.actions.lock') }}">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm3-10V7a3 3 0 116 0v4H9z" /></svg>
+                    <span>{{ $invoiceLocked ? __('app.invoices.actions.unlock') : __('app.invoices.actions.lock') }}</span>
+                </button>
+            @endif
         </div>
     </div>
 
@@ -46,7 +56,14 @@
         </div>
     @endif
 
+    @if ($invoiceLocked)
+        <div class="mb-4 rounded-lg px-4 py-3 text-sm" style="border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 35%, var(--border2)); background: color-mix(in srgb, var(--warning, #f59e0b) 10%, var(--surface)); color: var(--text);">
+            {{ __('app.invoices.locked.banner') }}
+        </div>
+    @endif
+
     <form wire:submit="saveInvoice" class="space-y-4">
+        <fieldset @disabled($invoiceLocked) class="space-y-4">
         <div class="ek-card p-5 sm:p-6">
             <div class="grid gap-4 lg:grid-cols-2">
                 <div class="space-y-4">
@@ -440,6 +457,7 @@
                 <button type="submit" class="ek-btn-primary" style="width: auto;">{{ __('app.invoices.actions.save') }}</button>
             </div>
         </div>
+        </fieldset>
     </form>
 
     @include('livewire.invoices.preview-modal')

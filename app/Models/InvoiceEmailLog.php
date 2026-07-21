@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'from_email',
     'subject',
     'sent_at',
+    'open_token',
+    'opened_at',
 ])]
 class InvoiceEmailLog extends Model
 {
@@ -24,6 +26,7 @@ class InvoiceEmailLog extends Model
     {
         return [
             'sent_at' => 'datetime',
+            'opened_at' => 'datetime',
         ];
     }
 

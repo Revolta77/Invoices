@@ -250,6 +250,9 @@ return [
             'paid_total' => 'Paid:',
             'unpaid_total' => 'Unpaid:',
             'emailed_at' => 'Sent :date',
+            'opened_at' => 'Opened :date',
+            'email_sent' => 'Email sent',
+            'email_opened' => 'Email opened',
             'menu' => 'Invoice menu',
         ],
 
@@ -269,6 +272,20 @@ return [
             'delete' => 'Delete',
             'add_item' => 'Add item',
             'remove_item' => 'Remove item',
+            'lock' => 'Lock',
+            'unlock' => 'Unlock',
+        ],
+
+        'locked' => [
+            'label' => 'Locked',
+            'banner' => 'This invoice is locked. You cannot edit its details or add a payment until you unlock it.',
+            'lock_title' => 'Lock invoice',
+            'unlock_title' => 'Unlock invoice',
+            'lock_description' => 'Once locked, the invoice details cannot be edited and no payment can be added until you unlock it again.',
+            'unlock_description' => 'Once unlocked, the invoice can be edited again and payments can be added.',
+            'cancel' => 'Cancel',
+            'lock_submit' => 'Lock invoice',
+            'unlock_submit' => 'Unlock invoice',
         ],
 
         'form' => [
@@ -525,6 +542,7 @@ return [
             'pdf_generation_failed' => 'Failed to generate invoice PDF.',
             'email_send_failed' => 'Failed to send email. Check the application mail settings.',
             'export_check_save' => 'Review and save the invoice before exporting.',
+            'locked' => 'The invoice is locked and cannot be edited or have a payment added.',
         ],
     ],
 
@@ -539,6 +557,8 @@ return [
         'invoice_sent' => 'Invoice sent by email.',
         'invoice_deleted' => 'Invoice :number was deleted.',
         'payment_recorded' => 'Payment recorded.',
+        'invoice_locked' => 'Invoice :number was locked.',
+        'invoice_unlocked' => 'Invoice :number was unlocked.',
         'company_profile_saved' => 'Company profile saved.',
         'email_updated' => 'Email updated.',
         'password_changed' => 'Password changed.',

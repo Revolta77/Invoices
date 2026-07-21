@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\EmailOpenTrackingController;
 use App\Http\Controllers\InvoiceDocumentController;
 use App\Http\Controllers\LocaleController;
 use App\Livewire\Auth\ForgotPassword;
@@ -12,6 +13,9 @@ use App\Livewire\Dashboard;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/locale/{locale}', LocaleController::class)->name('locale.switch');
+
+Route::get('/email/open/{token}', EmailOpenTrackingController::class)
+    ->name('email.open');
 
 Route::get('/email/verify/{id}/{hash}', VerifyEmailController::class)
     ->middleware('signed')

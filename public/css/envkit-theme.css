@@ -2311,6 +2311,14 @@ html.theme-transition-active::view-transition-new(root) {
     cursor: help;
 }
 
+.ek-invoice-emailed--sent {
+    color: var(--warning);
+}
+
+.ek-invoice-emailed--opened {
+    color: var(--success);
+}
+
 .ek-invoice-emailed svg {
     width: 0.95rem;
     height: 0.95rem;

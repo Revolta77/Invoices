@@ -250,6 +250,9 @@ return [
             'paid_total' => 'Uhradené:',
             'unpaid_total' => 'Neuhradené:',
             'emailed_at' => 'Odoslané :date',
+            'opened_at' => 'Otvorené :date',
+            'email_sent' => 'E-mail odoslaný',
+            'email_opened' => 'E-mail otvorený',
             'menu' => 'Menu faktúry',
         ],
 
@@ -269,6 +272,20 @@ return [
             'delete' => 'Vymazať',
             'add_item' => 'Pridať položku',
             'remove_item' => 'Odstrániť položku',
+            'lock' => 'Zamknúť',
+            'unlock' => 'Odomknúť',
+        ],
+
+        'locked' => [
+            'label' => 'Zamknutá',
+            'banner' => 'Táto faktúra je zamknutá. Nie je možné upravovať údaje ani pridávať úhradu, kým ju neodomknete.',
+            'lock_title' => 'Zamknúť faktúru',
+            'unlock_title' => 'Odomknúť faktúru',
+            'lock_description' => 'Po zamknutí nebude možné upravovať údaje faktúry ani pridať úhradu, kým ju znovu neodomknete.',
+            'unlock_description' => 'Po odomknutí bude možné faktúru opäť upravovať a pridávať k nej úhradu.',
+            'cancel' => 'Zrušiť',
+            'lock_submit' => 'Zamknúť faktúru',
+            'unlock_submit' => 'Odomknúť faktúru',
         ],
 
         'form' => [
@@ -525,6 +542,7 @@ return [
             'pdf_generation_failed' => 'Nepodarilo sa vygenerovať PDF faktúry.',
             'email_send_failed' => 'E-mail sa nepodarilo odoslať. Skontrolujte nastavenie pošty aplikácie.',
             'export_check_save' => 'Pred exportom skontrolujte a uložte faktúru.',
+            'locked' => 'Faktúra je zamknutá a nedá sa upravovať ani k nej pridať úhrada.',
         ],
     ],
 
@@ -539,6 +557,8 @@ return [
         'invoice_sent' => 'Faktúra bola odoslaná e-mailom.',
         'invoice_deleted' => 'Faktúra :number bola vymazaná.',
         'payment_recorded' => 'Úhrada bola zaznamenaná.',
+        'invoice_locked' => 'Faktúra :number bola zamknutá.',
+        'invoice_unlocked' => 'Faktúra :number bola odomknutá.',
         'company_profile_saved' => 'Profil firmy bol uložený.',
         'email_updated' => 'E-mail bol aktualizovaný.',
         'password_changed' => 'Heslo bolo zmenené.',
